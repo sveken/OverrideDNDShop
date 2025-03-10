@@ -24,7 +24,7 @@ jobs:
         for platform in "${platforms[@]}"; do
           os=$(echo $platform | cut -d'/' -f1)
           arch=$(echo $platform | cut -d'/' -f2)
-          output="dist/nicetube-$os-$arch"
+          output="dist/DnDShop-$os-$arch"
           [ "$os" == "windows" ] && output+=".exe"
           GOOS=$os GOARCH=$arch go build -o $output ./app
         done
