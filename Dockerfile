@@ -10,7 +10,7 @@ WORKDIR /app
 COPY . .
 
 # Build the Go app
-RUN go build -o main .
+RUN go build -o main ./app
 
 # Start a new stage from scratch
 FROM alpine:latest
