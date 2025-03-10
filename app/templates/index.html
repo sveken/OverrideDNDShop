@@ -1,0 +1,374 @@
+{{ define "content" }}
+<div class="tab-container">
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'Items')">Manage Items</button>
+        <button class="tablinks" onclick="openTab(event, 'Shop')">Generate Shop</button>
+        <button class="tablinks" onclick="openTab(event, 'Settings')">Settings</button>
+    </div>
+
+    <!-- Items Tab -->
+    <div id="Items" class="tabcontent" style="display: block;">
+        <h2>Item Management</h2>
+        <form id="add-item-form">
+            <div class="form-group">
+                <label for="name">Item Name:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea id="description" name="description" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="localPrice" id="localPriceLabel">Local Price:</label>
+                <input type="text" id="localPrice" name="localPrice" required>
+            </div>
+
+            <div class="form-group">
+                <label for="nationalPrice" id="nationalPriceLabel">National Price:</label>
+                <input type="text" id="nationalPrice" name="nationalPrice" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="category">Category:</label>
+                <select id="category" name="category" required></select>
+            </div>
+            
+            <div class="form-group">
+                <label for="market">Market Type:</label>
+                <select id="market" name="market" required>
+                    <option value="day">Day Market</option>
+                    <option value="black">Black Market</option>
+                </select>
+            </div>
+            
+            <button type="submit">Add Item</button>
+        </form>
+        
+        <div id="items-table">
+            {{ template "items-table" . }}
+        </div>
+    </div>
+
+    <!-- Shop Tab -->
+    <div id="Shop" class="tabcontent">
+        <h2>Generate Shop</h2>
+        
+        <div class="toggle-container">
+            <button class="toggle-btn active" onclick="setMarketType('day', this)">Day Market</button>
+            <button class="toggle-btn" onclick="setMarketType('black', this)">Black Market</button>
+        </div>
+        
+        <input type="hidden" id="selectedMarket" value="day">
+        
+        <button class="btn" onclick="generateShop()">Generate Shop</button>
+        
+        <div id="generated-shop-container" style="margin-top: 2rem;"></div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="Settings" class="tabcontent">
+        <h2>Settings</h2>
+        
+        <div class="form-group">
+            <h3>Currency Names</h3>
+            <div class="form-group">
+                <label for="local-currency-name">Local Currency Name:</label>
+                <input type="text" id="local-currency-name">
+            </div>
+            <div class="form-group">
+                <label for="national-currency-name">National Currency Name:</label>
+                <input type="text" id="national-currency-name">
+            </div>
+            <button onclick="saveCurrencyNames()">Save Currency Names</button>
+        </div>
+
+        <div class="form-group">
+            <h3>Category Configuration</h3>
+            <table id="category-table">
+                <thead>
+                    <tr>
+                        <th>Category Name</th>
+                        <th>Cooldown (days)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="category-list"></tbody>
+            </table>
+            
+            <div>
+                <h4>Add New Category</h4>
+                <div class="form-group">
+                    <label for="new-category-name">Name:</label>
+                    <input type="text" id="new-category-name">
+                </div>
+                <div class="form-group">
+                    <label for="new-category-cooldown">Cooldown (days):</label>
+                    <input type="number" id="new-category-cooldown" min="1" value="3">
+                </div>
+                <button onclick="addCategory()">Add Category</button>
+            </div>
+        </div>
+        
+        <div class="form-group" style="margin-top: 2rem;">
+            <h3>Import/Export</h3>
+            <button onclick="exportData()">Export Data</button>
+            
+            <div style="margin-top: 1rem;">
+                <label for="import-file">Import Data:</label>
+                <input type="file" id="import-file" accept=".json">
+                <button onclick="importData()">Import</button>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 2rem;">
+            <h3>Reset Application</h3>
+            <button class="btn-danger" onclick="resetApp()">Reset All Data</button>
+            <p class="text-muted">Warning: This will delete all items, categories, and settings.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab functionality
+    function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+
+        // Refresh items table when switching to Items tab
+        if (tabName === 'Items') {
+            refreshItemsTable();
+        }
+    }
+    
+    // Set market type for shop generation
+    function setMarketType(type, btn) {
+        document.querySelectorAll('.toggle-btn').forEach(el => el.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('selectedMarket').value = type;
+    }
+    
+    // Generate shop
+    function generateShop() {
+        const market = document.getElementById('selectedMarket').value;
+        
+        // First decrement all cooldowns for the current market only
+        itemStore.decrementCooldowns(market);
+        
+        // Then reload shop
+        const shopContainer = document.getElementById('generated-shop-container');
+        
+        // Get available items from localStorage and currency names from config
+        const items = itemStore.getItems().filter(item => 
+            item.market === market && item.cooldown === 0
+        );
+        const config = configStore.getConfig();
+        const currencyNames = config.currencyNames;
+
+        if (items.length > 0) {
+            shopContainer.innerHTML = `
+                <div class="shop-grid">
+                    ${items.map(item => `
+                        <div class="shop-item">
+                            <div>
+                                <h3>${item.name}</h3>
+                                <p>${item.description}</p>
+                                <p><strong>${currencyNames.local}:</strong> ${item.localPrice}</p>
+                                <p><strong>${currencyNames.national}:</strong> ${item.nationalPrice}</p>
+                                <p><strong>Category:</strong> ${item.category}</p>
+                            </div>
+                            <button class="btn" onclick="buyItem('${item.id}')">Buy</button>
+                        </div>
+                    `).join('')}
+                </div>`;
+        } else {
+            shopContainer.innerHTML = '<p>No items available.</p>';
+        }
+
+        // Also refresh the items table if it's visible
+        const itemsTab = document.getElementById('Items');
+        if (itemsTab.style.display === 'block') {
+            refreshItemsTable();
+        }
+    }
+
+    function buyItem(id) {
+        itemStore.applyCooldown(id);
+        generateShop(); // Refresh the entire shop display
+    }
+    
+    // Delete item
+    function deleteItem(id) {
+        if (confirm('Are you sure you want to delete this item?')) {
+            itemStore.deleteItem(id);
+            refreshItemsTable();
+        }
+    }
+    
+    // Refresh items table
+    function refreshItemsTable() {
+        const items = itemStore.getItems();
+        const tableBody = document.querySelector('#items-table tbody');
+        
+        if (!tableBody) {
+            console.error('Items table not found');
+            return;
+        }
+        
+        tableBody.innerHTML = '';
+        
+        if (items.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="8">No items added yet</td>';
+            tableBody.appendChild(row);
+            return;
+        }
+        
+        items.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.name}</td>
+                <td>${item.description}</td>
+                <td>${item.localPrice}</td>
+                <td>${item.nationalPrice}</td>
+                <td>${item.category}</td>
+                <td>${item.market === 'day' ? 'Day Market' : 'Black Market'}</td>
+                <td>${item.cooldown > 0 ? `<span class="cooldown">${item.cooldown} days</span>` : 'Available'}</td>
+                <td>
+                    ${item.cooldown > 0 ? `
+                        <button class="btn" onclick="resetItemCooldown('${item.id}')">Reset Cooldown</button>
+                    ` : ''}
+                    <button class="btn btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+    
+    // Load categories into select dropdown
+    function loadCategories() {
+        const config = configStore.getConfig();
+        const categorySelect = document.getElementById('category');
+        
+        if (!categorySelect) return;
+        
+        categorySelect.innerHTML = '';
+        config.categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.name;
+            option.textContent = category.name;
+            categorySelect.appendChild(option);
+        });
+    }
+    
+    // Refresh category table in settings
+    function refreshCategoryTable() {
+        const config = configStore.getConfig();
+        const categoryList = document.getElementById('category-list');
+        
+        if (!categoryList) return;
+        
+        categoryList.innerHTML = '';
+        
+        config.categories.forEach(category => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${category.name}</td>
+                <td>${category.cooldownDays}</td>
+                <td>
+                    <button class="btn-danger" onclick="deleteCategory('${category.name}')">Delete</button>
+                </td>
+            `;
+            categoryList.appendChild(row);
+        });
+    }
+    
+    // Add new category
+    function addCategory() {
+        const nameInput = document.getElementById('new-category-name');
+        const cooldownInput = document.getElementById('new-category-cooldown');
+        
+        const name = nameInput.value.trim();
+        const cooldown = parseInt(cooldownInput.value);
+        
+        if (!name || isNaN(cooldown) || cooldown < 1) {
+            alert('Please enter a valid category name and cooldown days');
+            return;
+        }
+        
+        configStore.updateCategory(name, cooldown);
+        
+        // Clear inputs
+        nameInput.value = '';
+        cooldownInput.value = '3';
+        
+        // Refresh both tables
+        refreshCategoryTable();
+        loadCategories();
+    }
+    
+    // Delete category
+    function deleteCategory(name) {
+        if (confirm(`Are you sure you want to delete the "${name}" category?`)) {
+            configStore.deleteCategory(name);
+            refreshCategoryTable();
+            loadCategories();
+        }
+    }
+    
+    // Export data
+    function exportData() {
+        itemStore.exportItems();
+    }
+    
+    // Import data
+    function importData() {
+        const fileInput = document.getElementById('import-file');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Please select a file to import');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const contents = e.target.result;
+            const success = itemStore.importItems(contents);
+            
+            if (success) {
+                alert('Data imported successfully');
+                refreshItemsTable();
+                refreshCategoryTable();
+                loadCategories();
+                fileInput.value = '';
+            } else {
+                alert('Error importing data. Make sure the file format is correct.');
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    function resetItemCooldown(id) {
+        itemStore.resetCooldown(id);
+        refreshItemsTable();
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshItemsTable();
+        refreshCategoryTable();
+        loadCategories();
+    });
+</script>
+{{ end }}

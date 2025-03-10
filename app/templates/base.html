@@ -1,0 +1,396 @@
+{{ define "base" }}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Shop Generator</title>
+    <!-- Basic styling -->
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #7D5A50;
+        }
+        button, .btn {
+            background-color: #7D5A50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover, .btn:hover {
+            background-color: #6a4c43;
+        }
+        .btn-danger {
+            background-color: #d9534f;
+        }
+        .btn-danger:hover {
+            background-color: #c9302c;
+        }
+        .toggle-container {
+            display: flex;
+            margin: 1rem 0;
+        }
+        .toggle-btn {
+            padding: 10px 20px;
+            background-color: #ddd;
+            color: #333;
+            cursor: pointer;
+            border: 1px solid #ccc;
+        }
+        .toggle-btn.active {
+            background-color: #7D5A50;
+            color: white;
+        }
+        .toggle-btn:first-child {
+            border-radius: 4px 0 0 4px;
+        }
+        .toggle-btn:last-child {
+            border-radius: 0 4px 4px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .shop-item {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            border: 1px solid #ddd;
+            padding: 1rem;
+            margin-bottom: 0;
+            border-radius: 4px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .shop-item h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
+        .shop-item p {
+            margin: 0.25rem 0;
+        }
+        .shop-item button {
+            margin-top: 1rem;
+            align-self: flex-start;
+        }
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            padding: 1rem 0;
+        }
+        .tab-container {
+            margin: 1rem 0;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            color: #333;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 17px;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #7D5A50;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            margin-bottom: 1rem;
+        }
+        .cooldown {
+            color: #d9534f;
+            font-weight: bold;
+        }
+        .btn + .btn {
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>D&D Shop Generator</h1>
+        
+        {{ block "content" . }}{{ end }}
+    </div>
+
+    <script>
+        // Store for items
+        const itemStore = {
+            getItems: function() {
+                const items = localStorage.getItem('dndShopItems');
+                return items ? JSON.parse(items) : [];
+            },
+            saveItems: function(items) {
+                localStorage.setItem('dndShopItems', JSON.stringify(items));
+            },
+            addItem: function(item) {
+                const items = this.getItems();
+                // Generate a unique ID
+                item.id = Date.now().toString();
+                item.cooldown = 0;
+                items.push(item);
+                this.saveItems(items);
+                return item;
+            },
+            deleteItem: function(id) {
+                let items = this.getItems();
+                items = items.filter(item => item.id !== id);
+                this.saveItems(items);
+            },
+            applyCooldown: function(id) {
+                let items = this.getItems();
+                const item = items.find(item => item.id === id);
+                if (item) {
+                    // Get cooldown days from configuration
+                    const config = JSON.parse(localStorage.getItem('dndShopConfig') || '{}');
+                    const categories = config.categories || [
+                        {name: "Small", cooldownDays: 2},
+                        {name: "Medium", cooldownDays: 3},
+                        {name: "Large", cooldownDays: 5}
+                    ];
+                    
+                    const categoryConfig = categories.find(c => 
+                        c.name.toLowerCase() === item.category.toLowerCase());
+                    
+                    if (categoryConfig) {
+                        item.cooldown = categoryConfig.cooldownDays;
+                    } else {
+                        // Default cooldown if category not found
+                        item.cooldown = 3;
+                    }
+                    this.saveItems(items);
+                }
+            },
+            decrementCooldowns: function(currentMarket) {
+                let items = this.getItems();
+                items = items.map(item => {
+                    if (item.market === currentMarket && item.cooldown > 0) {
+                        item.cooldown--;
+                    }
+                    return item;
+                });
+                this.saveItems(items);
+            },
+            exportItems: function() {
+                const items = this.getItems();
+                const config = JSON.parse(localStorage.getItem('dndShopConfig') || '{}');
+                const data = {
+                    items: items,
+                    config: config
+                };
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'dnd-shop-data.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            },
+            importItems: function(jsonData) {
+                try {
+                    const data = JSON.parse(jsonData);
+                    if (data.items) {
+                        this.saveItems(data.items);
+                    }
+                    if (data.config) {
+                        localStorage.setItem('dndShopConfig', JSON.stringify(data.config));
+                    }
+                    return true;
+                } catch (e) {
+                    console.error("Error importing data:", e);
+                    return false;
+                }
+            },
+            resetCooldown: function(id) {
+                let items = this.getItems();
+                const item = items.find(item => item.id === id);
+                if (item) {
+                    item.cooldown = 0;
+                    this.saveItems(items);
+                }
+            },
+        };
+
+        // Config store
+        const configStore = {
+            defaultCategories: [
+                {name: "Small", cooldownDays: 2},
+                {name: "Medium", cooldownDays: 3},
+                {name: "Large", cooldownDays: 5}
+            ],
+            defaultCurrencyNames: {
+                local: "Local Currency",
+                national: "National Currency"
+            },
+            getConfig: function() {
+                const config = localStorage.getItem('dndShopConfig');
+                if (!config) {
+                    // If no config exists, initialize with defaults
+                    const defaultConfig = { 
+                        categories: this.defaultCategories,
+                        currencyNames: this.defaultCurrencyNames
+                    };
+                    this.saveConfig(defaultConfig);
+                    return defaultConfig;
+                }
+                const parsedConfig = JSON.parse(config);
+                // Ensure currency names exist
+                if (!parsedConfig.currencyNames) {
+                    parsedConfig.currencyNames = this.defaultCurrencyNames;
+                    this.saveConfig(parsedConfig);
+                }
+                return parsedConfig;
+            },
+            saveConfig: function(config) {
+                localStorage.setItem('dndShopConfig', JSON.stringify(config));
+            },
+            updateCategory: function(name, cooldownDays) {
+                const config = this.getConfig();
+                let category = config.categories.find(c => c.name === name);
+                
+                if (category) {
+                    category.cooldownDays = cooldownDays;
+                } else {
+                    config.categories.push({name: name, cooldownDays: cooldownDays});
+                }
+                
+                this.saveConfig(config);
+            },
+            deleteCategory: function(name) {
+                const config = this.getConfig();
+                config.categories = config.categories.filter(c => c.name !== name);
+                this.saveConfig(config);
+            },
+            updateCurrencyNames: function(localName, nationalName) {
+                const config = this.getConfig();
+                config.currencyNames = {
+                    local: localName,
+                    national: nationalName
+                };
+                this.saveConfig(config);
+                this.updateCurrencyLabels();
+            },
+
+            updateCurrencyLabels: function() {
+                const config = this.getConfig();
+                const names = config.currencyNames;
+                
+                // Update form labels
+                const localLabel = document.getElementById('localPriceLabel');
+                const nationalLabel = document.getElementById('nationalPriceLabel');
+                if (localLabel) localLabel.textContent = names.local + ':';
+                if (nationalLabel) nationalLabel.textContent = names.national + ':';
+
+                // Update currency name inputs in settings
+                const localInput = document.getElementById('local-currency-name');
+                const nationalInput = document.getElementById('national-currency-name');
+                if (localInput) localInput.value = names.local;
+                if (nationalInput) nationalInput.value = names.national;
+            },
+
+            resetToDefaults: function() {
+                this.saveConfig({ 
+                    categories: this.defaultCategories,
+                    currencyNames: this.defaultCurrencyNames
+                });
+            }
+        };
+
+        // Currency name save function
+        function saveCurrencyNames() {
+            const localName = document.getElementById('local-currency-name').value.trim() || configStore.defaultCurrencyNames.local;
+            const nationalName = document.getElementById('national-currency-name').value.trim() || configStore.defaultCurrencyNames.national;
+            configStore.updateCurrencyNames(localName, nationalName);
+        }
+
+        // Reset application function
+        function resetApp() {
+            if (confirm('Are you sure you want to reset all data? This cannot be undone!')) {
+                localStorage.clear();
+                configStore.resetToDefaults();
+                itemStore.saveItems([]);
+                location.reload();
+            }
+        }
+
+        // Initialize config on first load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize with defaults if no config exists
+            if (!localStorage.getItem('dndShopConfig')) {
+                configStore.resetToDefaults();
+            }
+            // Initialize all UI components that depend on categories
+            loadCategories();
+            refreshCategoryTable();
+            configStore.updateCurrencyLabels();
+        });
+    </script>
+</body>
+</html>
+{{ end }}

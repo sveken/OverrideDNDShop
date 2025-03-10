@@ -1,0 +1,91 @@
+{{ define "items-table" }}
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Local Price</th>
+            <th>National Price</th>
+            <th>Category</th>
+            <th>Market</th>
+            <th>Cooldown</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="items-table-body">
+        <!-- Items will be loaded from localStorage via JavaScript -->
+    </tbody>
+</table>
+
+<script>
+    // Load and display items from localStorage
+    function refreshItemsTable() {
+        const items = itemStore.getItems();
+        const tableBody = document.getElementById('items-table-body');
+        
+        if (!items || items.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="8">No items available</td></tr>';
+            return;
+        }
+        
+        tableBody.innerHTML = items.map(item => `
+            <tr>
+                <td>${item.name}</td>
+                <td>${item.description}</td>
+                <td>${item.localPrice}</td>
+                <td>${item.nationalPrice}</td>
+                <td>${item.category}</td>
+                <td>${item.market === 'day' ? 'Day Market' : 'Black Market'}</td>
+                <td>${item.cooldown > 0 ? `<span class="cooldown">${item.cooldown} days</span>` : 'Available'}</td>
+                <td>
+                    ${item.cooldown > 0 ? `
+                        <button class="btn" onclick="resetItemCooldown('${item.id}')">Reset Cooldown</button>
+                    ` : ''}
+                    <button class="btn btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function resetItemCooldown(id) {
+        itemStore.resetCooldown(id);
+        refreshItemsTable();
+    }
+
+    // Initialize the table
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshItemsTable();
+
+        // Handle form submission
+        const form = document.getElementById('add-item-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                
+                const newItem = {
+                    id: Date.now().toString(),
+                    name: formData.get('name'),
+                    description: formData.get('description'),
+                    localPrice: formData.get('localPrice'),
+                    nationalPrice: formData.get('nationalPrice'),
+                    category: formData.get('category'),
+                    market: formData.get('market'),
+                    cooldown: 0
+                };
+                
+                itemStore.addItem(newItem);
+                refreshItemsTable();
+                this.reset();
+            });
+        }
+    });
+
+    function deleteItem(id) {
+        if (confirm('Are you sure you want to delete this item?')) {
+            itemStore.deleteItem(id);
+            refreshItemsTable();
+        }
+    }
+</script>
+{{ end }}

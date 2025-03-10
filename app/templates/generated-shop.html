@@ -1,0 +1,46 @@
+{{ define "content" }}
+<h2>{{ .Market | title }} Market</h2>
+<div id="shop-items">
+    <!-- Items will be loaded from localStorage via JavaScript -->
+</div>
+
+<script>
+    // Load and display available items for the current market
+    const market = "{{ .Market }}";
+    const items = itemStore.getItems().filter(item => 
+        item.market === market && item.cooldown === 0
+    );
+
+    const shopContainer = document.getElementById('shop-items');
+    const config = configStore.getConfig();
+    const currencyNames = config.currencyNames;
+
+    if (items.length > 0) {
+        shopContainer.innerHTML = `
+            <div class="shop-grid">
+                ${items.map(item => `
+                    <div class="shop-item">
+                        <div>
+                            <h3>${item.name}</h3>
+                            <p>${item.description}</p>
+                            <p><strong>${currencyNames.local}:</strong> ${item.localPrice}</p>
+                            <p><strong>${currencyNames.national}:</strong> ${item.nationalPrice}</p>
+                            <p><strong>Category:</strong> ${item.category}</p>
+                        </div>
+                        <button class="btn" onclick="buyItem('${item.id}')">Buy</button>
+                    </div>
+                `).join('')}
+            </div>`;
+    } else {
+        shopContainer.innerHTML = '<p>No items available.</p>';
+    }
+
+    function buyItem(id) {
+        itemStore.applyCooldown(id);
+        // Refresh the display
+        const item = document.querySelector(`[onclick="buyItem('${id}')"]`).closest('.shop-item');
+        item.style.opacity = '0.5';
+        item.querySelector('button').disabled = true;
+    }
+</script>
+{{ end }}
