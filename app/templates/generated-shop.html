@@ -37,21 +37,14 @@
     function reduceCooldowns() {
         const items = JSON.parse(localStorage.getItem('items') || '[]');
         
-        // Reduce all cooldowns by 1
+        // Reduce all cooldowns by 1 for all items, regardless of market type
         for (let i = 0; i < items.length; i++) {
             if (items[i].cooldown > 0) {
                 items[i].cooldown--;
             }
         }
         
-        // For Black Market, reduce cooldowns by an additional 1
-        if (market === "black") {
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].cooldown > 0) {
-                    items[i].cooldown--;
-                }
-            }
-        }
+        // Removed the additional cooldown reduction for Black Market to prevent double reduction
         
         // Save updated items
         localStorage.setItem('items', JSON.stringify(items));
@@ -107,7 +100,7 @@
             shopContainer.innerHTML = `
                 <div class="shop-grid">
                     ${selectedItems.map(item => `
-                        <div class="shop-item" data-id="${item.id}">
+                        <div class="shop-item ${item.market === 'black' ? 'black-market' : ''}" data-id="${item.id}">
                             <div>
                                 <h3>${item.name}</h3>
                                 <p>${item.description}</p>

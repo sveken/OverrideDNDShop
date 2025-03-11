@@ -1,4 +1,19 @@
 {{ define "items-table" }}
+<style>
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        align-items: stretch;
+        width: 100%;
+    }
+    .action-buttons .btn {
+        width: 100%;
+        white-space: nowrap;
+        margin: 0;
+        text-align: left;
+    }
+</style>
 <table>
     <thead>
         <tr>
@@ -38,10 +53,12 @@
                 <td>${item.market === 'day' ? 'Day Market' : 'Black Market'}</td>
                 <td>${item.cooldown > 0 ? `<span class="cooldown">${item.cooldown} days</span>` : 'Available'}</td>
                 <td>
-                    ${item.cooldown > 0 ? `
-                        <button class="btn" onclick="resetItemCooldown('${item.id}')">Reset Cooldown</button>
-                    ` : ''}
-                    <button class="btn btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+                    <div class="action-buttons">
+                        ${item.cooldown > 0 ? `
+                            <button class="btn" onclick="resetItemCooldown('${item.id}')">Reset Cooldown</button>
+                        ` : ''}
+                        <button class="btn btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -76,7 +93,23 @@
                 
                 itemStore.addItem(newItem);
                 refreshItemsTable();
-                this.reset();
+
+                // Save current category and market values
+                const category = formData.get('category');
+                const market = formData.get('market');
+                
+                // Reset only the input fields we want to clear
+                form.querySelector('#name').value = '';
+                form.querySelector('#description').value = '';
+                form.querySelector('#localPrice').value = '';
+                form.querySelector('#nationalPrice').value = '';
+                
+                // Restore category and market values
+                form.querySelector('#category').value = category;
+                form.querySelector('#market').value = market;
+
+                // Focus on the name field for the next item
+                form.querySelector('#name').focus();
             });
         }
     });

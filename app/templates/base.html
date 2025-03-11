@@ -87,29 +87,68 @@
             flex-direction: column;
             justify-content: space-between;
             height: 100%;
-            border: 1px solid #ddd;
-            padding: 1rem;
+            padding: 1.5rem;
             margin-bottom: 0;
-            border-radius: 4px;
+            border-radius: 8px;
             background-color: #fff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 2px solid #7D5A50;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
+        
+        .shop-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .shop-item.black-market {
+            background-color: rgba(0,0,0,0.05);
+            border-color: #463631;
+        }
+
+        .shop-item.black-market::before {
+            content: "★";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            color: #463631;
+        }
+
         .shop-item h3 {
             margin-top: 0;
-            margin-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            color: #463631;
+            font-size: 1.25rem;
+            padding-right: 30px;
         }
+
+        .shop-item.black-market h3 {
+            color: #2a201d;
+        }
+
         .shop-item p {
-            margin: 0.25rem 0;
+            margin: 0.5rem 0;
+            line-height: 1.4;
         }
+
         .shop-item button {
-            margin-top: 1rem;
-            align-self: flex-start;
+            margin-top: 1.5rem;
+            align-self: stretch;
+            transition: all 0.2s ease;
         }
+
+        .shop-item button:hover {
+            transform: scale(1.02);
+        }
+        
         .shop-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1rem;
-            padding: 1rem 0;
+            gap: 1.5rem;
+            padding: 1.5rem 0;
         }
         .tab-container {
             margin: 1rem 0;
@@ -228,18 +267,14 @@
             decrementCooldowns: function(currentMarket) {
                 let items = this.getItems();
                 items = items.map(item => {
-                    // For Black Market generation, reduce cooldowns for both day and black market items
-                    if (currentMarket === 'black') {
-                        if (item.cooldown > 0) {
-                            // Reduce by 1 for Black Market generation (changed from 2)
-                            item.cooldown--;
-                        }
-                    } else {
-                        // For Day Market, only reduce for day market items by 1
-                        if (item.market === currentMarket && item.cooldown > 0) {
-                            item.cooldown--;
-                        }
+                    // Always decrement cooldowns for all items regardless of market type
+                    if (item.cooldown > 0) {
+                        item.cooldown--;
                     }
+                    
+                    // Removed the additional cooldown reduction for Black Market
+                    // to prevent the double reduction
+                    
                     return item;
                 });
                 this.saveItems(items);

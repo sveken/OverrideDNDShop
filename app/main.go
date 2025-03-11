@@ -170,19 +170,10 @@ func handleGenerateShop(w http.ResponseWriter, r *http.Request) {
 		market = "day" // Default
 	}
 
-	// Decrement cooldowns on all items when a shop is generated
+	// Decrement cooldowns on all items when a shop is generated, regardless of market
 	itemStore.decrementCooldowns()
 
-	// For Black Market, provide additional cooldown reduction
-	if market == "black" {
-		// Additional cooldown reduction for Black Market generation
-		for i := range itemStore.items {
-			if itemStore.items[i].Cooldown > 0 {
-				// Reduce cooldown by one more for a total of 2 per Black Market generation
-				itemStore.items[i].Cooldown--
-			}
-		}
-	}
+	// Removed the additional decrement for Black Market to prevent double reduction
 
 	// Parse all required templates
 	tmpl, err := template.New("base").Funcs(template.FuncMap{
