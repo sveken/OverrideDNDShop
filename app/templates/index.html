@@ -55,14 +55,17 @@
     <div id="Shop" class="tabcontent">
         <h2>Generate Shop</h2>
         
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button class="btn" onclick="generateShop()">Generate Shop</button>
+            <button class="btn" onclick="clearShop()">Clear Shop</button>
+        </div>
+        
         <div class="toggle-container">
             <button class="toggle-btn active" onclick="setMarketType('day', this)">Day Market</button>
             <button class="toggle-btn" onclick="setMarketType('black', this)">Black Market</button>
         </div>
         
         <input type="hidden" id="selectedMarket" value="day">
-        
-        <button class="btn" onclick="generateShop()">Generate Shop</button>
         
         <div id="generated-shop-container" style="margin-top: 2rem;"></div>
     </div>
@@ -91,6 +94,7 @@
                     <tr>
                         <th>Category Name</th>
                         <th>Cooldown (days)</th>
+                        <th>Item Limit</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -107,7 +111,11 @@
                     <label for="new-category-cooldown">Cooldown (days):</label>
                     <input type="number" id="new-category-cooldown" min="1" value="3">
                 </div>
-                <button onclick="addCategory()">Add Category</button>
+                <div class="form-group">
+                    <label for="new-category-item-limit">Item Limit:</label>
+                    <input type="number" id="new-category-item-limit" min="1" value="3">
+                </div>
+                <button id="category-action-btn" onclick="addCategory()">Add Category</button>
             </div>
         </div>
         
@@ -168,17 +176,50 @@
         // Then reload shop
         const shopContainer = document.getElementById('generated-shop-container');
         
-        // Get available items from localStorage and currency names from config
-        const items = itemStore.getItems().filter(item => 
-            item.market === market && item.cooldown === 0
-        );
+        // Get available items from localStorage and config details
+        let items;
+        if (market === 'black') {
+            // Black Market shows items from both Day and Black markets
+            items = itemStore.getItems().filter(item => 
+                (item.market === 'day' || item.market === 'black') && item.cooldown === 0
+            );
+        } else {
+            // Day Market only shows Day Market items
+            items = itemStore.getItems().filter(item => 
+                item.market === market && item.cooldown === 0
+            );
+        }
+        
         const config = configStore.getConfig();
         const currencyNames = config.currencyNames;
 
         if (items.length > 0) {
+            // Group items by category for limiting
+            const itemsByCategory = {};
+            items.forEach(item => {
+                if (!itemsByCategory[item.category]) {
+                    itemsByCategory[item.category] = [];
+                }
+                itemsByCategory[item.category].push(item);
+            });
+
+            // Apply item limits per category and shuffle
+            const selectedItems = [];
+            config.categories.forEach(category => {
+                const categoryItems = itemsByCategory[category.name] || [];
+                // Shuffle items in this category
+                for (let i = categoryItems.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [categoryItems[i], categoryItems[j]] = [categoryItems[j], categoryItems[i]];
+                }
+                // Select only up to the limit for this category
+                const limit = category.itemLimit || 3; // Default to 3 if not specified
+                selectedItems.push(...categoryItems.slice(0, limit));
+            });
+
             shopContainer.innerHTML = `
                 <div class="shop-grid">
-                    ${items.map(item => `
+                    ${selectedItems.map(item => `
                         <div class="shop-item">
                             <div>
                                 <h3>${item.name}</h3>
@@ -201,10 +242,34 @@
             refreshItemsTable();
         }
     }
+    
+    // Function to clear the shop
+    function clearShop() {
+        document.getElementById('generated-shop-container').innerHTML = '';
+    }
 
     function buyItem(id) {
+        // Apply cooldown to the item
         itemStore.applyCooldown(id);
-        generateShop(); // Refresh the entire shop display
+        
+        // Update UI to grey out the button without regenerating the shop
+        const buyButton = document.querySelector(`button[onclick="buyItem('${id}')"]`);
+        if (buyButton) {
+            const itemContainer = buyButton.closest('.shop-item');
+            if (itemContainer) {
+                // Grey out the item
+                itemContainer.style.opacity = '0.5';
+                // Disable the button
+                buyButton.disabled = true;
+                buyButton.textContent = 'Purchased';
+            }
+        }
+        
+        // Refresh the items table if it's visible (without regenerating shop)
+        const itemsTab = document.getElementById('Items');
+        if (itemsTab.style.display === 'block') {
+            refreshItemsTable();
+        }
     }
     
     // Delete item
@@ -285,7 +350,9 @@
             row.innerHTML = `
                 <td>${category.name}</td>
                 <td>${category.cooldownDays}</td>
+                <td>${category.itemLimit || 3}</td>
                 <td>
+                    <button class="btn" onclick="editCategory('${category.name}')">Edit</button>
                     <button class="btn-danger" onclick="deleteCategory('${category.name}')">Delete</button>
                 </td>
             `;
@@ -293,37 +360,153 @@
         });
     }
     
-    // Add new category
-    function addCategory() {
+    // Variables to track editing state
+    let isEditingCategory = false;
+    let editingCategoryName = '';
+    
+    // Edit category function
+    function editCategory(name) {
+        const config = configStore.getConfig();
+        const category = config.categories.find(c => c.name === name);
+        
+        if (!category) return;
+        
+        // Set the editing state
+        isEditingCategory = true;
+        editingCategoryName = name;
+        
+        // Populate form fields with category values
+        document.getElementById('new-category-name').value = category.name;
+        document.getElementById('new-category-cooldown').value = category.cooldownDays;
+        document.getElementById('new-category-item-limit').value = category.itemLimit || 3;
+        
+        // Change the Add button text to Update
+        const actionButton = document.getElementById('category-action-btn');
+        actionButton.textContent = 'Update Category';
+        actionButton.onclick = function() {
+            updateCategory();
+        };
+        
+        // Add a cancel button
+        const cancelButton = document.createElement('button');
+        cancelButton.textContent = 'Cancel';
+        cancelButton.className = 'btn';
+        cancelButton.style.marginLeft = '10px';
+        cancelButton.onclick = cancelEditCategory;
+        
+        if (!document.getElementById('cancel-edit-btn')) {
+            actionButton.parentNode.appendChild(cancelButton);
+            cancelButton.id = 'cancel-edit-btn';
+        }
+        
+        // Scroll to the edit form
+        document.getElementById('new-category-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // Function to update an existing category
+    function updateCategory() {
         const nameInput = document.getElementById('new-category-name');
         const cooldownInput = document.getElementById('new-category-cooldown');
+        const itemLimitInput = document.getElementById('new-category-item-limit');
         
         const name = nameInput.value.trim();
         const cooldown = parseInt(cooldownInput.value);
+        const itemLimit = parseInt(itemLimitInput.value);
         
-        if (!name || isNaN(cooldown) || cooldown < 1) {
-            alert('Please enter a valid category name and cooldown days');
+        if (!name || isNaN(cooldown) || cooldown < 1 || isNaN(itemLimit) || itemLimit < 1) {
+            alert('Please enter a valid category name, cooldown days, and item limit');
             return;
         }
         
-        configStore.updateCategory(name, cooldown);
+        const config = configStore.getConfig();
         
-        // Clear inputs
-        nameInput.value = '';
-        cooldownInput.value = '3';
+        // If name changed, need to update all items using the old category name
+        if (name !== editingCategoryName) {
+            // Update items with the old category name to use the new one
+            updateItemCategories(editingCategoryName, name);
+        }
         
-        // Refresh both tables
+        // Update category in the config
+        configStore.updateCategory(name, cooldown, itemLimit);
+        
+        // If we're editing an existing category and changed the name, delete the old one
+        if (name !== editingCategoryName) {
+            configStore.deleteCategory(editingCategoryName);
+        }
+        
+        // Reset edit state
+        cancelEditCategory();
+        
+        // Refresh UI
         refreshCategoryTable();
         loadCategories();
     }
     
-    // Delete category
-    function deleteCategory(name) {
-        if (confirm(`Are you sure you want to delete the "${name}" category?`)) {
-            configStore.deleteCategory(name);
-            refreshCategoryTable();
-            loadCategories();
+    // Function to cancel category editing
+    function cancelEditCategory() {
+        // Reset the editing state
+        isEditingCategory = false;
+        editingCategoryName = '';
+        
+        // Clear form inputs
+        document.getElementById('new-category-name').value = '';
+        document.getElementById('new-category-cooldown').value = '3';
+        document.getElementById('new-category-item-limit').value = '3';
+        
+        // Reset the Add button using its ID
+        const actionButton = document.getElementById('category-action-btn');
+        if (actionButton) {
+            actionButton.textContent = 'Add Category';
+            actionButton.onclick = function() {
+                addCategory();
+            };
         }
+        
+        // Remove the cancel button
+        const cancelButton = document.getElementById('cancel-edit-btn');
+        if (cancelButton) {
+            cancelButton.remove();
+        }
+    }
+    
+    // Function to update item categories when a category name changes
+    function updateItemCategories(oldCategoryName, newCategoryName) {
+        const items = itemStore.getItems();
+        const updatedItems = items.map(item => {
+            if (item.category === oldCategoryName) {
+                item.category = newCategoryName;
+            }
+            return item;
+        });
+        
+        itemStore.saveItems(updatedItems);
+    }
+    
+    // Add new category (renamed from addCategory)
+    function addCategory() {
+        const nameInput = document.getElementById('new-category-name');
+        const cooldownInput = document.getElementById('new-category-cooldown');
+        const itemLimitInput = document.getElementById('new-category-item-limit');
+        
+        const name = nameInput.value.trim();
+        const cooldown = parseInt(cooldownInput.value);
+        const itemLimit = parseInt(itemLimitInput.value);
+        
+        if (!name || isNaN(cooldown) || cooldown < 1 || isNaN(itemLimit) || itemLimit < 1) {
+            alert('Please enter a valid category name, cooldown days, and item limit');
+            return;
+        }
+        
+        configStore.updateCategory(name, cooldown, itemLimit);
+        
+        // Clear inputs
+        nameInput.value = '';
+        cooldownInput.value = '3';
+        itemLimitInput.value = '3';
+        
+        // Refresh both tables
+        refreshCategoryTable();
+        loadCategories();
     }
     
     // Export data

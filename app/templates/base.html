@@ -228,8 +228,17 @@
             decrementCooldowns: function(currentMarket) {
                 let items = this.getItems();
                 items = items.map(item => {
-                    if (item.market === currentMarket && item.cooldown > 0) {
-                        item.cooldown--;
+                    // For Black Market generation, reduce cooldowns for both day and black market items
+                    if (currentMarket === 'black') {
+                        if (item.cooldown > 0) {
+                            // Reduce by 1 for Black Market generation (changed from 2)
+                            item.cooldown--;
+                        }
+                    } else {
+                        // For Day Market, only reduce for day market items by 1
+                        if (item.market === currentMarket && item.cooldown > 0) {
+                            item.cooldown--;
+                        }
                     }
                     return item;
                 });
@@ -280,9 +289,9 @@
         // Config store
         const configStore = {
             defaultCategories: [
-                {name: "Small", cooldownDays: 2},
-                {name: "Medium", cooldownDays: 3},
-                {name: "Large", cooldownDays: 5}
+                {name: "Small", cooldownDays: 2, itemLimit: 3},
+                {name: "Medium", cooldownDays: 3, itemLimit: 2},
+                {name: "Large", cooldownDays: 5, itemLimit: 1}
             ],
             defaultCurrencyNames: {
                 local: "Local Currency",
@@ -310,14 +319,19 @@
             saveConfig: function(config) {
                 localStorage.setItem('dndShopConfig', JSON.stringify(config));
             },
-            updateCategory: function(name, cooldownDays) {
+            updateCategory: function(name, cooldownDays, itemLimit) {
                 const config = this.getConfig();
                 let category = config.categories.find(c => c.name === name);
                 
                 if (category) {
                     category.cooldownDays = cooldownDays;
+                    category.itemLimit = itemLimit;
                 } else {
-                    config.categories.push({name: name, cooldownDays: cooldownDays});
+                    config.categories.push({
+                        name: name, 
+                        cooldownDays: cooldownDays,
+                        itemLimit: itemLimit
+                    });
                 }
                 
                 this.saveConfig(config);

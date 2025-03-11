@@ -25,6 +25,7 @@ type Item struct {
 type CategoryConfig struct {
 	Name         string `json:"name"`
 	CooldownDays int    `json:"cooldownDays"`
+	ItemLimit    int    `json:"itemLimit"` // Number of items to show per category in the shop
 }
 
 // Global configuration
@@ -32,9 +33,9 @@ var config = struct {
 	Categories []CategoryConfig
 }{
 	Categories: []CategoryConfig{
-		{Name: "Small", CooldownDays: 2},
-		{Name: "Medium", CooldownDays: 3},
-		{Name: "Large", CooldownDays: 5},
+		{Name: "Small", CooldownDays: 2, ItemLimit: 3},
+		{Name: "Medium", CooldownDays: 3, ItemLimit: 2},
+		{Name: "Large", CooldownDays: 5, ItemLimit: 1},
 	},
 }
 
@@ -169,6 +170,20 @@ func handleGenerateShop(w http.ResponseWriter, r *http.Request) {
 		market = "day" // Default
 	}
 
+	// Decrement cooldowns on all items when a shop is generated
+	itemStore.decrementCooldowns()
+
+	// For Black Market, provide additional cooldown reduction
+	if market == "black" {
+		// Additional cooldown reduction for Black Market generation
+		for i := range itemStore.items {
+			if itemStore.items[i].Cooldown > 0 {
+				// Reduce cooldown by one more for a total of 2 per Black Market generation
+				itemStore.items[i].Cooldown--
+			}
+		}
+	}
+
 	// Parse all required templates
 	tmpl, err := template.New("base").Funcs(template.FuncMap{
 		"title": titleCase,
@@ -180,8 +195,12 @@ func handleGenerateShop(w http.ResponseWriter, r *http.Request) {
 
 	data := struct {
 		Market string
+		Config struct {
+			Categories []CategoryConfig
+		}
 	}{
 		Market: market,
+		Config: config,
 	}
 
 	// Execute the base template - items are loaded client-side
@@ -195,8 +214,16 @@ func getAvailableItems(market string) []Item {
 	availableItems := []Item{}
 
 	for _, item := range items {
-		if item.Market == market && item.Cooldown == 0 {
-			availableItems = append(availableItems, item)
+		// For Black Market, include both Day and Black Market items
+		if market == "black" {
+			if (item.Market == "day" || item.Market == "black") && item.Cooldown == 0 {
+				availableItems = append(availableItems, item)
+			}
+		} else {
+			// For Day Market, only include Day Market items
+			if item.Market == market && item.Cooldown == 0 {
+				availableItems = append(availableItems, item)
+			}
 		}
 	}
 

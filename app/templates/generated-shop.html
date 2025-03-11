@@ -1,5 +1,8 @@
 {{ define "content" }}
 <h2>{{ .Market | title }} Market</h2>
+<div id="shop-controls">
+    <button id="clear-shop-btn" class="btn">Clear Shop</button>
+</div>
 <div id="shop-items">
     <!-- Items will be loaded from localStorage via JavaScript -->
 </div>
@@ -7,40 +10,168 @@
 <script>
     // Load and display available items for the current market
     const market = "{{ .Market }}";
-    const items = itemStore.getItems().filter(item => 
-        item.market === market && item.cooldown === 0
-    );
+    const config = {
+        categories: [
+            { name: "Small", itemLimit: 3 },
+            { name: "Medium", itemLimit: 2 },
+            { name: "Large", itemLimit: 1 }
+        ]
+    };
 
-    const shopContainer = document.getElementById('shop-items');
-    const config = configStore.getConfig();
-    const currencyNames = config.currencyNames;
+    // Function to fetch config from the server
+    async function fetchConfig() {
+        try {
+            const response = await fetch('/config');
+            if (response.ok) {
+                const serverConfig = await response.json();
+                // Update local config with server values
+                config.categories = serverConfig.Categories;
+            }
+        } catch (error) {
+            console.error('Failed to fetch config:', error);
+        }
+        return config;
+    }
 
-    if (items.length > 0) {
-        shopContainer.innerHTML = `
-            <div class="shop-grid">
-                ${items.map(item => `
-                    <div class="shop-item">
-                        <div>
-                            <h3>${item.name}</h3>
-                            <p>${item.description}</p>
-                            <p><strong>${currencyNames.local}:</strong> ${item.localPrice}</p>
-                            <p><strong>${currencyNames.national}:</strong> ${item.nationalPrice}</p>
-                            <p><strong>Category:</strong> ${item.category}</p>
+    // Function to reduce cooldowns when generating the shop
+    function reduceCooldowns() {
+        const items = JSON.parse(localStorage.getItem('items') || '[]');
+        
+        // Reduce all cooldowns by 1
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].cooldown > 0) {
+                items[i].cooldown--;
+            }
+        }
+        
+        // For Black Market, reduce cooldowns by an additional 1
+        if (market === "black") {
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].cooldown > 0) {
+                    items[i].cooldown--;
+                }
+            }
+        }
+        
+        // Save updated items
+        localStorage.setItem('items', JSON.stringify(items));
+    }
+
+    // Function to load and display shop items
+    async function loadShopItems() {
+        // Reduce cooldowns when loading the shop
+        reduceCooldowns();
+        
+        const shopConfig = await fetchConfig();
+        const items = JSON.parse(localStorage.getItem('items') || '[]');
+        
+        // Filter available items based on market type
+        let availableItems;
+        if (market === "black") {
+            // Black Market shows items from both Day and Black markets
+            availableItems = items.filter(item => 
+                (item.market === "day" || item.market === "black") && item.cooldown === 0
+            );
+        } else {
+            // Day Market only shows Day Market items
+            availableItems = items.filter(item => 
+                item.market === market && item.cooldown === 0
+            );
+        }
+
+        const shopContainer = document.getElementById('shop-items');
+        
+        // Group items by category for limiting
+        const itemsByCategory = {};
+        availableItems.forEach(item => {
+            if (!itemsByCategory[item.category]) {
+                itemsByCategory[item.category] = [];
+            }
+            itemsByCategory[item.category].push(item);
+        });
+
+        // Apply item limits per category and shuffle
+        const selectedItems = [];
+        shopConfig.categories.forEach(category => {
+            const categoryItems = itemsByCategory[category.name] || [];
+            // Shuffle items in this category
+            for (let i = categoryItems.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [categoryItems[i], categoryItems[j]] = [categoryItems[j], categoryItems[i]];
+            }
+            // Select only up to the limit for this category
+            selectedItems.push(...categoryItems.slice(0, category.itemLimit));
+        });
+
+        if (selectedItems.length > 0) {
+            shopContainer.innerHTML = `
+                <div class="shop-grid">
+                    ${selectedItems.map(item => `
+                        <div class="shop-item" data-id="${item.id}">
+                            <div>
+                                <h3>${item.name}</h3>
+                                <p>${item.description}</p>
+                                <p><strong>Price:</strong> ${item.price}</p>
+                                <p><strong>Category:</strong> ${item.category}</p>
+                            </div>
+                            <button class="btn buy-btn" data-id="${item.id}">Buy</button>
                         </div>
-                        <button class="btn" onclick="buyItem('${item.id}')">Buy</button>
-                    </div>
-                `).join('')}
-            </div>`;
-    } else {
-        shopContainer.innerHTML = '<p>No items available.</p>';
+                    `).join('')}
+                </div>`;
+
+            // Add event listeners to Buy buttons
+            document.querySelectorAll('.buy-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const itemId = this.getAttribute('data-id');
+                    buyItem(itemId);
+                });
+            });
+        } else {
+            shopContainer.innerHTML = '<p>No items available.</p>';
+        }
     }
 
+    // Load shop items when the page loads
+    loadShopItems();
+
+    // Function to handle buying an item
     function buyItem(id) {
-        itemStore.applyCooldown(id);
-        // Refresh the display
-        const item = document.querySelector(`[onclick="buyItem('${id}')"]`).closest('.shop-item');
-        item.style.opacity = '0.5';
-        item.querySelector('button').disabled = true;
+        const items = JSON.parse(localStorage.getItem('items') || '[]');
+        const categoryMap = {};
+        
+        // Create a map of category names to cooldown days
+        config.categories.forEach(cat => {
+            categoryMap[cat.name] = cat.cooldownDays;
+        });
+        
+        // Find the item and apply cooldown
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].id === id) {
+                // Apply cooldown based on item's category
+                const cooldown = categoryMap[items[i].category] || 3; // Default to 3 if category not found
+                items[i].cooldown = cooldown;
+                break;
+            }
+        }
+        
+        // Save updated items back to localStorage
+        localStorage.setItem('items', JSON.stringify(items));
+        
+        // Update UI to indicate item is purchased
+        const itemElement = document.querySelector(`.shop-item[data-id="${id}"]`);
+        if (itemElement) {
+            itemElement.style.opacity = '0.5';
+            const buyButton = itemElement.querySelector('.buy-btn');
+            if (buyButton) {
+                buyButton.disabled = true;
+                buyButton.textContent = 'Purchased';
+            }
+        }
     }
+
+    // Clear shop functionality
+    document.getElementById('clear-shop-btn').addEventListener('click', function() {
+        document.getElementById('shop-items').innerHTML = '';
+    });
 </script>
 {{ end }}
