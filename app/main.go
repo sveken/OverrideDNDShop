@@ -9,17 +9,18 @@ import (
 	"strings"
 )
 
-//go:embed templates
+//go:embed templates/*
 var content embed.FS
 
 type Item struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Price       string `json:"price"`
-	Category    string `json:"category"` // Small, Medium, Large
-	Market      string `json:"market"`   // Day or Black
-	Cooldown    int    `json:"cooldown"` // Current cooldown counter
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	LocalPrice    string `json:"localPrice"`
+	NationalPrice string `json:"nationalPrice"`
+	Category      string `json:"category"` // Small, Medium, Large
+	Market        string `json:"market"`   // Day or Black
+	Cooldown      int    `json:"cooldown"` // Current cooldown counter
 }
 
 type CategoryConfig struct {
@@ -86,13 +87,37 @@ func titleCase(s string) string {
 }
 
 func main() {
-
 	// Create HTTP server
 	mux := http.NewServeMux()
 
-	// Static files
-	staticFileServer := http.FileServer(http.FS(content))
-	mux.Handle("/static/", staticFileServer)
+	// Set up static file serving for PWA
+	staticHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Remove /static/ prefix for filesystem lookup
+		path := strings.TrimPrefix(r.URL.Path, "/static/")
+
+		// Add proper content types for PWA assets
+		if strings.HasSuffix(path, ".js") {
+			w.Header().Set("Content-Type", "application/javascript")
+		} else if strings.HasSuffix(path, ".json") {
+			w.Header().Set("Content-Type", "application/json")
+		} else if strings.HasSuffix(path, ".png") {
+			w.Header().Set("Content-Type", "image/png")
+		}
+
+		w.Header().Set("Cache-Control", "public, max-age=31536000")
+
+		// Read and serve the file from embedded filesystem
+		file, err := content.ReadFile("templates/static/" + path)
+		if err != nil {
+			log.Printf("Error serving static file %s: %v", path, err)
+			http.NotFound(w, r)
+			return
+		}
+		w.Write(file)
+	})
+
+	// Handle static files
+	mux.Handle("/static/", staticHandler)
 
 	// Routes
 	mux.HandleFunc("/", handleIndex)
@@ -172,8 +197,6 @@ func handleGenerateShop(w http.ResponseWriter, r *http.Request) {
 
 	// Decrement cooldowns on all items when a shop is generated, regardless of market
 	itemStore.decrementCooldowns()
-
-	// Removed the additional decrement for Black Market to prevent double reduction
 
 	// Parse all required templates
 	tmpl, err := template.New("base").Funcs(template.FuncMap{
