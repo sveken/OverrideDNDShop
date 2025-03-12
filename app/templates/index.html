@@ -71,6 +71,20 @@
         
         <input type="hidden" id="selectedMarket" value="day">
         
+        <div class="category-filters" style="margin-top: 1rem; border: 1px solid var(--table-border); padding: 1rem; border-radius: 4px;">
+            <h3 style="margin-top: 0;">Category Filters</h3>
+            <p>Select which categories to include in the shop generation:</p>
+            
+            <div id="category-toggles" class="category-toggles" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1rem;">
+                <!-- Category toggles will be added here dynamically -->
+            </div>
+            
+            <div style="margin-top: 0.5rem;">
+                <button class="btn" onclick="selectAllCategories(true)">Select All</button>
+                <button class="btn" onclick="selectAllCategories(false)">Deselect All</button>
+            </div>
+        </div>
+        
         <div id="generated-shop-container" style="margin-top: 2rem;"></div>
     </div>
 
@@ -228,17 +242,24 @@
         // Then reload shop
         const shopContainer = document.getElementById('generated-shop-container');
         
+        // Get disabled categories from localStorage
+        const disabledCategories = JSON.parse(localStorage.getItem('disabledCategories') || '[]');
+        
         // Get available items from localStorage and config details
         let items;
         if (market === 'black') {
             // Black Market shows items from both Day and Black markets
             items = itemStore.getItems().filter(item => 
-                (item.market === 'day' || item.market === 'black') && item.cooldown === 0
+                (item.market === 'day' || item.market === 'black') && 
+                item.cooldown === 0 &&
+                !disabledCategories.includes(item.category)
             );
         } else {
             // Day Market only shows Day Market items
             items = itemStore.getItems().filter(item => 
-                item.market === market && item.cooldown === 0
+                item.market === market && 
+                item.cooldown === 0 &&
+                !disabledCategories.includes(item.category)
             );
         }
         
@@ -258,6 +279,11 @@
             // Apply item limits per category and shuffle
             const selectedItems = [];
             config.categories.forEach(category => {
+                // Skip disabled categories
+                if (disabledCategories.includes(category.name)) {
+                    return;
+                }
+                
                 const categoryItems = itemsByCategory[category.name] || [];
                 // Shuffle items in this category
                 for (let i = categoryItems.length - 1; i > 0; i--) {
@@ -636,13 +662,125 @@
         refreshItemsTable();
     }
     
+    // Load and update category toggles
+    function updateCategoryToggles() {
+        const config = configStore.getConfig();
+        const container = document.getElementById('category-toggles');
+        
+        if (!container) return;
+        
+        // Get disabled categories from localStorage or initialize empty array
+        const disabledCategories = JSON.parse(localStorage.getItem('disabledCategories') || '[]');
+        
+        // Clear existing toggles
+        container.innerHTML = '';
+        
+        // Create toggle for each category
+        config.categories.forEach(category => {
+            const isDisabled = disabledCategories.includes(category.name);
+            const toggleWrapper = document.createElement('div');
+            toggleWrapper.className = 'category-toggle';
+            toggleWrapper.style.display = 'flex';
+            toggleWrapper.style.alignItems = 'center';
+            toggleWrapper.style.padding = '8px 12px';
+            toggleWrapper.style.border = '1px solid var(--table-border)';
+            toggleWrapper.style.borderRadius = '4px';
+            toggleWrapper.style.backgroundColor = isDisabled ? 'transparent' : 'var(--button-bg)';
+            toggleWrapper.style.color = isDisabled ? 'var(--text-color)' : 'white';
+            toggleWrapper.style.cursor = 'pointer';
+            toggleWrapper.style.transition = 'all 0.2s ease';
+            
+            toggleWrapper.innerHTML = `
+                <input type="checkbox" id="category-toggle-${category.name}" 
+                    data-category="${category.name}" 
+                    style="margin-right: 8px;"
+                    ${isDisabled ? '' : 'checked'}>
+                <label for="category-toggle-${category.name}" style="cursor: pointer; user-select: none;">
+                    ${category.name}
+                </label>
+            `;
+            
+            toggleWrapper.addEventListener('click', (e) => {
+                const checkbox = toggleWrapper.querySelector('input[type="checkbox"]');
+                // Toggle the checkbox
+                checkbox.checked = !checkbox.checked;
+                
+                // Update the toggle style
+                toggleWrapper.style.backgroundColor = checkbox.checked ? 'var(--button-bg)' : 'transparent';
+                toggleWrapper.style.color = checkbox.checked ? 'white' : 'var(--text-color)';
+                
+                // Save the disabled categories
+                saveDisabledCategories();
+                
+                // Prevent the checkbox's default behavior
+                e.preventDefault();
+            });
+            
+            container.appendChild(toggleWrapper);
+        });
+    }
+    
+    // Save disabled categories to localStorage
+    function saveDisabledCategories() {
+        const checkboxes = document.querySelectorAll('#category-toggles input[type="checkbox"]');
+        const disabledCategories = [];
+        
+        checkboxes.forEach(checkbox => {
+            if (!checkbox.checked) {
+                disabledCategories.push(checkbox.getAttribute('data-category'));
+            }
+        });
+        
+        localStorage.setItem('disabledCategories', JSON.stringify(disabledCategories));
+    }
+    
+    // Select/deselect all category toggles
+    function selectAllCategories(select) {
+        const checkboxes = document.querySelectorAll('#category-toggles input[type="checkbox"]');
+        const toggleWrappers = document.querySelectorAll('.category-toggle');
+        
+        checkboxes.forEach((checkbox, index) => {
+            checkbox.checked = select;
+            const wrapper = toggleWrappers[index];
+            wrapper.style.backgroundColor = select ? 'var(--button-bg)' : 'transparent';
+            wrapper.style.color = select ? 'white' : 'var(--text-color)';
+        });
+        
+        saveDisabledCategories();
+    }
+    
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
         refreshItemsTable();
         refreshCategoryTable();
         loadCategories();
+        updateCategoryToggles();
         checkForUpdates();
     });
+    
+    // Update category toggles when tab changes to Shop
+    document.querySelector('.tab button:nth-child(2)').addEventListener('click', function() {
+        updateCategoryToggles();
+    });
+    
+    // Update category toggles when categories are changed
+    const originalUpdateCategory = updateCategory;
+    updateCategory = function() {
+        originalUpdateCategory();
+        updateCategoryToggles();
+    };
+    
+    const originalAddCategory = addCategory;
+    addCategory = function() {
+        originalAddCategory();
+        updateCategoryToggles();
+    };
+    
+    const originalDeleteCategory = deleteCategory;
+    deleteCategory = function(name) {
+        originalDeleteCategory(name);
+        updateCategoryToggles();
+    };
 </script>
 
 <style>
