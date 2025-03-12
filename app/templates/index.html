@@ -141,7 +141,7 @@
         </div>
         
         <div class="version-footer" style="margin-top: 3rem; text-align: center; color: #777; font-size: 0.9rem; border-top: 1px solid var(--table-border); padding-top: 1rem;">
-            Version 0.6
+            Version 0.7
         </div>
     </div>
 </div>
@@ -332,44 +332,51 @@
         }
     }
     
-    // Refresh items table
+    // Refresh items table - now delegates to the function in items-table.html
     function refreshItemsTable() {
-        const items = itemStore.getItems();
-        const tableBody = document.querySelector('#items-table tbody');
-        
-        if (!tableBody) {
-            console.error('Items table not found');
-            return;
+        // This function is now implemented in items-table.html 
+        // and includes sorting and filtering capabilities
+        if (typeof window.refreshItemsTableWithSortAndFilter === 'function') {
+            window.refreshItemsTableWithSortAndFilter();
+        } else {
+            // Fallback to simple refresh if the enhanced function isn't available
+            const items = itemStore.getItems();
+            const tableBody = document.querySelector('#items-table tbody');
+            
+            if (!tableBody) {
+                console.error('Items table not found');
+                return;
+            }
+            
+            tableBody.innerHTML = '';
+            
+            if (items.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = '<td colspan="8">No items added yet</td>';
+                tableBody.appendChild(row);
+                return;
+            }
+            
+            items.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.description}</td>
+                    <td>${item.localPrice}</td>
+                    <td>${item.nationalPrice}</td>
+                    <td>${item.category}</td>
+                    <td>${item.market === 'day' ? 'Day Market' : 'Black Market'}</td>
+                    <td>${item.cooldown > 0 ? `<span class="cooldown">${item.cooldown} days</span>` : 'Available'}</td>
+                    <td>
+                        ${item.cooldown > 0 ? `
+                            <button class="btn" onclick="resetItemCooldown('${item.id}')">Reset Cooldown</button>
+                        ` : ''}
+                        <button class="btn btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
         }
-        
-        tableBody.innerHTML = '';
-        
-        if (items.length === 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = '<td colspan="8">No items added yet</td>';
-            tableBody.appendChild(row);
-            return;
-        }
-        
-        items.forEach(item => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${item.name}</td>
-                <td>${item.description}</td>
-                <td>${item.localPrice}</td>
-                <td>${item.nationalPrice}</td>
-                <td>${item.category}</td>
-                <td>${item.market === 'day' ? 'Day Market' : 'Black Market'}</td>
-                <td>${item.cooldown > 0 ? `<span class="cooldown">${item.cooldown} days</span>` : 'Available'}</td>
-                <td>
-                    ${item.cooldown > 0 ? `
-                        <button class="btn" onclick="resetItemCooldown('${item.id}')">Reset Cooldown</button>
-                    ` : ''}
-                    <button class="btn btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
     }
     
     // Load categories into select dropdown
@@ -559,6 +566,36 @@
         // Refresh both tables
         refreshCategoryTable();
         loadCategories();
+    }
+    
+    // Delete category function
+    function deleteCategory(name) {
+        // Count items in this category
+        const items = itemStore.getItems();
+        const itemsInCategory = items.filter(item => item.category === name);
+        
+        let confirmMessage = `Are you sure you want to delete the "${name}" category?`;
+        
+        if (itemsInCategory.length > 0) {
+            confirmMessage += `\n\nWARNING: This will also delete ${itemsInCategory.length} item(s) in this category!`;
+        }
+        
+        if (confirm(confirmMessage)) {
+            // First delete all items in this category
+            if (itemsInCategory.length > 0) {
+                for (const item of itemsInCategory) {
+                    itemStore.deleteItem(item.id);
+                }
+            }
+            
+            // Then delete the category
+            configStore.deleteCategory(name);
+            
+            // Refresh UI
+            refreshCategoryTable();
+            loadCategories();
+            refreshItemsTable();
+        }
     }
     
     // Export data

@@ -13,17 +13,91 @@
         margin: 0;
         text-align: left;
     }
+    .sortable {
+        cursor: pointer;
+        position: relative;
+        padding-right: 18px;
+    }
+    .sortable:hover {
+        background-color: rgba(0,0,0,0.05);
+    }
+    .sortable::after {
+        content: "↕️";
+        position: absolute;
+        right: 5px;
+        opacity: 0.3;
+        font-size: 0.8em;
+    }
+    .sortable.asc::after {
+        content: "↑";
+        opacity: 1;
+    }
+    .sortable.desc::after {
+        content: "↓";
+        opacity: 1;
+    }
+    .filter-controls {
+        margin-bottom: 15px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .filter-group select, .filter-group input {
+        padding: 6px;
+        border-radius: 4px;
+    }
+    .filter-group label {
+        margin-bottom: 0;
+        white-space: nowrap;
+    }
 </style>
+
+<div class="filter-controls">
+    <div class="filter-group">
+        <label for="name-filter">Filter by Name:</label>
+        <input type="text" id="name-filter" placeholder="Enter name...">
+    </div>
+    <div class="filter-group">
+        <label for="category-filter">Category:</label>
+        <select id="category-filter">
+            <option value="">All Categories</option>
+            <!-- Categories loaded dynamically -->
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="market-filter">Market:</label>
+        <select id="market-filter">
+            <option value="">All Markets</option>
+            <option value="day">Day Market</option>
+            <option value="black">Black Market</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="cooldown-filter">Availability:</label>
+        <select id="cooldown-filter">
+            <option value="">All Items</option>
+            <option value="available">Available Now</option>
+            <option value="cooldown">On Cooldown</option>
+        </select>
+    </div>
+    <button class="btn" onclick="resetFilters()">Reset Filters</button>
+</div>
+
 <table>
     <thead>
         <tr>
-            <th>Name</th>
+            <th class="sortable" data-sort="name">Name</th>
             <th>Description</th>
-            <th>Local Price</th>
-            <th>National Price</th>
-            <th>Category</th>
-            <th>Market</th>
-            <th>Cooldown</th>
+            <th class="sortable" data-sort="localPrice">Local Price</th>
+            <th class="sortable" data-sort="nationalPrice">National Price</th>
+            <th class="sortable" data-sort="category">Category</th>
+            <th class="sortable" data-sort="market">Market</th>
+            <th class="sortable" data-sort="cooldown">Cooldown</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -33,11 +107,89 @@
 </table>
 
 <script>
-    // Load and display items from localStorage
+    // Current sort state
+    let currentSort = {
+        column: 'name',
+        direction: 'asc'
+    };
+    
+    // Current filters
+    let filters = {
+        name: '',
+        category: '',
+        market: '',
+        cooldown: ''
+    };
+    
+    // Load and display items from localStorage with sorting and filtering
     function refreshItemsTable() {
-        const items = itemStore.getItems();
+        let items = itemStore.getItems();
         const tableBody = document.getElementById('items-table-body');
         
+        // Apply filters
+        items = items.filter(item => {
+            // Name filter (case insensitive)
+            if (filters.name && !item.name.toLowerCase().includes(filters.name.toLowerCase())) {
+                return false;
+            }
+            
+            // Category filter
+            if (filters.category && item.category !== filters.category) {
+                return false;
+            }
+            
+            // Market filter
+            if (filters.market && item.market !== filters.market) {
+                return false;
+            }
+            
+            // Cooldown filter
+            if (filters.cooldown === 'available' && item.cooldown > 0) {
+                return false;
+            }
+            if (filters.cooldown === 'cooldown' && item.cooldown === 0) {
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Apply sorting
+        items.sort((a, b) => {
+            let valueA, valueB;
+            
+            // Handle special sorting cases
+            if (currentSort.column === 'cooldown') {
+                valueA = a.cooldown;
+                valueB = b.cooldown;
+            } else if (currentSort.column === 'market') {
+                valueA = a.market === 'day' ? 'Day Market' : 'Black Market';
+                valueB = b.market === 'day' ? 'Day Market' : 'Black Market';
+            } else {
+                valueA = a[currentSort.column];
+                valueB = b[currentSort.column];
+                
+                // Try to handle numeric values appropriately
+                if (!isNaN(parseFloat(valueA)) && !isNaN(parseFloat(valueB))) {
+                    valueA = parseFloat(valueA);
+                    valueB = parseFloat(valueB);
+                } else if (typeof valueA === 'string' && typeof valueB === 'string') {
+                    valueA = valueA.toLowerCase();
+                    valueB = valueB.toLowerCase();
+                }
+            }
+            
+            // Perform the comparison
+            if (valueA < valueB) {
+                return currentSort.direction === 'asc' ? -1 : 1;
+            }
+            if (valueA > valueB) {
+                return currentSort.direction === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+        
+        // Update the table
         if (!items || items.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="8">No items available</td></tr>';
             return;
@@ -62,6 +214,116 @@
                 </td>
             </tr>
         `).join('');
+        
+        // Update sort indicators in column headers
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('asc', 'desc');
+            if (th.dataset.sort === currentSort.column) {
+                th.classList.add(currentSort.direction);
+            }
+        });
+        
+        // Update category filter options dynamically
+        updateCategoryFilterOptions();
+    }
+
+    // Expose the function to the global scope
+    window.refreshItemsTableWithSortAndFilter = refreshItemsTable;
+
+    // Update category filter with all available categories
+    function updateCategoryFilterOptions() {
+        const categoryFilter = document.getElementById('category-filter');
+        const currentSelection = categoryFilter.value;
+        
+        // Get all unique categories from items
+        const items = itemStore.getItems();
+        const categories = [...new Set(items.map(item => item.category))];
+        
+        // Clear existing options (except the first one)
+        while (categoryFilter.options.length > 1) {
+            categoryFilter.remove(1);
+        }
+        
+        // Add options for each category
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            categoryFilter.appendChild(option);
+        });
+        
+        // Restore selected value if it still exists
+        if (categories.includes(currentSelection)) {
+            categoryFilter.value = currentSelection;
+        }
+    }
+
+    // Sort items by clicking on column headers
+    function setupSortHandlers() {
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.dataset.sort;
+                
+                // Toggle sort direction or set new column
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+                
+                refreshItemsTable();
+            });
+        });
+    }
+
+    // Setup filter event handlers
+    function setupFilterHandlers() {
+        // Name filter (with debounce)
+        let nameFilterTimeout;
+        document.getElementById('name-filter').addEventListener('input', (e) => {
+            clearTimeout(nameFilterTimeout);
+            nameFilterTimeout = setTimeout(() => {
+                filters.name = e.target.value;
+                refreshItemsTable();
+            }, 300);
+        });
+        
+        // Category filter
+        document.getElementById('category-filter').addEventListener('change', (e) => {
+            filters.category = e.target.value;
+            refreshItemsTable();
+        });
+        
+        // Market filter
+        document.getElementById('market-filter').addEventListener('change', (e) => {
+            filters.market = e.target.value;
+            refreshItemsTable();
+        });
+        
+        // Cooldown filter
+        document.getElementById('cooldown-filter').addEventListener('change', (e) => {
+            filters.cooldown = e.target.value;
+            refreshItemsTable();
+        });
+    }
+
+    // Reset all filters
+    function resetFilters() {
+        filters = {
+            name: '',
+            category: '',
+            market: '',
+            cooldown: ''
+        };
+        
+        // Reset filter controls
+        document.getElementById('name-filter').value = '';
+        document.getElementById('category-filter').value = '';
+        document.getElementById('market-filter').value = '';
+        document.getElementById('cooldown-filter').value = '';
+        
+        refreshItemsTable();
     }
 
     function resetItemCooldown(id) {
@@ -71,6 +333,8 @@
 
     // Initialize the table
     document.addEventListener('DOMContentLoaded', function() {
+        setupSortHandlers();
+        setupFilterHandlers();
         refreshItemsTable();
 
         // Handle form submission
