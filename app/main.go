@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-//go:embed templates
+//go:embed templates static manifest.json sw.js
 var content embed.FS
 
 type Item struct {
@@ -93,6 +93,27 @@ func main() {
 	// Static files
 	staticFileServer := http.FileServer(http.FS(content))
 	mux.Handle("/static/", staticFileServer)
+
+	// PWA files
+	mux.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		manifestFile, err := content.ReadFile("manifest.json")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(manifestFile)
+	})
+
+	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		swFile, err := content.ReadFile("sw.js")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(swFile)
+	})
 
 	// Routes
 	mux.HandleFunc("/", handleIndex)

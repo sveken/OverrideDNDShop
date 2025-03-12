@@ -5,6 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D&D Shop Generator</title>
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="A tool for generating D&D shops with cooldown management">
+    <meta name="theme-color" content="#7D5A50">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
     <!-- Basic styling -->
     <style>
         :root {
@@ -343,6 +348,19 @@
     </div>
 
     <script>
+        // Register Service Worker for PWA support
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
+
         // Theme toggle functionality
         const themeToggle = document.getElementById('theme-toggle-checkbox');
         const htmlElement = document.documentElement;
