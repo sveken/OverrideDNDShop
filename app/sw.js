@@ -1,5 +1,5 @@
 // Increment the cache version to force updates
-const CACHE_NAME = 'dnd-shop-cache-v3';
+const CACHE_NAME = 'dnd-shop-cache-v4';
 const urlsToCache = [
   '/',
   '/static/icons/icon-192x192.png',
