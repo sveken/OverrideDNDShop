@@ -10,21 +10,29 @@
 <script>
     // Load and display available items for the current market
     const market = "{{ .Market }}";
-    const config = {
-        categories: [
-            { name: "Small", itemLimit: 3 },
-            { name: "Medium", itemLimit: 2 },
-            { name: "Large", itemLimit: 1 }
-        ]
+    
+    // Initialize with default values but we'll load from localStorage
+    let config = {
+        categories: []
     };
 
-    // Function to fetch config from the server
+    // Function to fetch config from localStorage first, then fallback to server 
     async function fetchConfig() {
         try {
+            // First try to get config from localStorage (this is what's imported from JSON files)
+            const localConfig = localStorage.getItem('dndShopConfig');
+            if (localConfig) {
+                const parsedConfig = JSON.parse(localConfig);
+                if (parsedConfig.categories && parsedConfig.categories.length > 0) {
+                    config.categories = parsedConfig.categories;
+                    return config;
+                }
+            }
+            
+            // If not found in localStorage, fallback to server config
             const response = await fetch('/config');
             if (response.ok) {
                 const serverConfig = await response.json();
-                // Update local config with server values
                 config.categories = serverConfig.Categories;
             }
         } catch (error) {
@@ -55,7 +63,10 @@
         // Reduce cooldowns when loading the shop
         reduceCooldowns();
         
+        // Get the config with proper item limits from localStorage or server
         const shopConfig = await fetchConfig();
+        console.log("Using shop config:", shopConfig);
+        
         const items = JSON.parse(localStorage.getItem('items') || '[]');
         
         // Filter available items based on market type
@@ -93,7 +104,9 @@
                 [categoryItems[i], categoryItems[j]] = [categoryItems[j], categoryItems[i]];
             }
             // Select only up to the limit for this category
-            selectedItems.push(...categoryItems.slice(0, category.itemLimit));
+            const limit = category.itemLimit || 3; // Default to 3 if not specified
+            console.log(`Category ${category.name} limit: ${limit}`);
+            selectedItems.push(...categoryItems.slice(0, limit));
         });
 
         if (selectedItems.length > 0) {
