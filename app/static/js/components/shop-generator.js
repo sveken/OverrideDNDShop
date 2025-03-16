@@ -79,8 +79,8 @@ function generateShop() {
             <div class="shop-grid">
                 ${selectedItems.map(item => `
                     <div class="shop-item ${item.market === 'black' ? 'black-market' : ''}" data-id="${item.id}">
-                        <div>
-                            <h3>${item.name}</h3>
+                        <h3>${item.name}</h3>
+                        <div class="shop-item-content">
                             <p>${item.description}</p>
                             <p><strong>${currencyNames.local}:</strong> ${item.localPrice}</p>
                             <p><strong>${currencyNames.national}:</strong> ${item.nationalPrice}</p>
