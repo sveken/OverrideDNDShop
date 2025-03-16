@@ -6,178 +6,26 @@
 <div id="shop-items">
     <!-- Items will be loaded from localStorage via JavaScript -->
 </div>
+{{ end }}
+
+{{ define "scripts" }}
+<!-- Component-specific scripts for shop generation -->
+<script src="/static/js/components/shop-generator.js"></script>
 
 <script>
-    // Load and display available items for the current market
-    const market = "{{ .Market }}";
-    
-    // Initialize with default values but we'll load from localStorage
-    let config = {
-        categories: []
-    };
-
-    // Function to fetch config from localStorage first, then fallback to server 
-    async function fetchConfig() {
-        try {
-            // First try to get config from localStorage (this is what's imported from JSON files)
-            const localConfig = localStorage.getItem('dndShopConfig');
-            if (localConfig) {
-                const parsedConfig = JSON.parse(localConfig);
-                if (parsedConfig.categories && parsedConfig.categories.length > 0) {
-                    config.categories = parsedConfig.categories;
-                    return config;
-                }
-            }
-            
-            // If not found in localStorage, fallback to server config
-            const response = await fetch('/config');
-            if (response.ok) {
-                const serverConfig = await response.json();
-                config.categories = serverConfig.Categories;
-            }
-        } catch (error) {
-            console.error('Failed to fetch config:', error);
-        }
-        return config;
-    }
-
-    // Function to reduce cooldowns when generating the shop
-    function reduceCooldowns() {
-        const items = JSON.parse(localStorage.getItem('items') || '[]');
+    // Initialize the shop generation
+    document.addEventListener('DOMContentLoaded', function() {
+        const market = "{{ .Market }}";
+        document.getElementById('selectedMarket').value = market;
         
-        // Reduce all cooldowns by 1 for all items, regardless of market type
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].cooldown > 0) {
-                items[i].cooldown--;
-            }
+        // Add event listener for clear shop button
+        const clearShopBtn = document.getElementById('clear-shop-btn');
+        if (clearShopBtn) {
+            clearShopBtn.addEventListener('click', clearShop);
         }
         
-        // Removed the additional cooldown reduction for Black Market to prevent double reduction
-        
-        // Save updated items
-        localStorage.setItem('items', JSON.stringify(items));
-    }
-
-    // Function to load and display shop items
-    async function loadShopItems() {
-        // Reduce cooldowns when loading the shop
-        reduceCooldowns();
-        
-        // Get the config with proper item limits from localStorage or server
-        const shopConfig = await fetchConfig();
-        console.log("Using shop config:", shopConfig);
-        
-        const items = JSON.parse(localStorage.getItem('items') || '[]');
-        
-        // Filter available items based on market type
-        let availableItems;
-        if (market === "black") {
-            // Black Market shows items from both Day and Black markets
-            availableItems = items.filter(item => 
-                (item.market === "day" || item.market === "black") && item.cooldown === 0
-            );
-        } else {
-            // Day Market only shows Day Market items
-            availableItems = items.filter(item => 
-                item.market === market && item.cooldown === 0
-            );
-        }
-
-        const shopContainer = document.getElementById('shop-items');
-        
-        // Group items by category for limiting
-        const itemsByCategory = {};
-        availableItems.forEach(item => {
-            if (!itemsByCategory[item.category]) {
-                itemsByCategory[item.category] = [];
-            }
-            itemsByCategory[item.category].push(item);
-        });
-
-        // Apply item limits per category and shuffle
-        const selectedItems = [];
-        shopConfig.categories.forEach(category => {
-            const categoryItems = itemsByCategory[category.name] || [];
-            // Shuffle items in this category
-            for (let i = categoryItems.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [categoryItems[i], categoryItems[j]] = [categoryItems[j], categoryItems[i]];
-            }
-            // Select only up to the limit for this category
-            const limit = category.itemLimit || 3; // Default to 3 if not specified
-            console.log(`Category ${category.name} limit: ${limit}`);
-            selectedItems.push(...categoryItems.slice(0, limit));
-        });
-
-        if (selectedItems.length > 0) {
-            shopContainer.innerHTML = `
-                <div class="shop-grid">
-                    ${selectedItems.map(item => `
-                        <div class="shop-item ${item.market === 'black' ? 'black-market' : ''}" data-id="${item.id}">
-                            <div>
-                                <h3>${item.name}</h3>
-                                <p>${item.description}</p>
-                                <p><strong>Price:</strong> ${item.price}</p>
-                                <p><strong>Category:</strong> ${item.category}</p>
-                            </div>
-                            <button class="btn buy-btn" data-id="${item.id}">Buy</button>
-                        </div>
-                    `).join('')}
-                </div>`;
-
-            // Add event listeners to Buy buttons
-            document.querySelectorAll('.buy-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const itemId = this.getAttribute('data-id');
-                    buyItem(itemId);
-                });
-            });
-        } else {
-            shopContainer.innerHTML = '<p>No items available.</p>';
-        }
-    }
-
-    // Load shop items when the page loads
-    loadShopItems();
-
-    // Function to handle buying an item
-    function buyItem(id) {
-        const items = JSON.parse(localStorage.getItem('items') || '[]');
-        const categoryMap = {};
-        
-        // Create a map of category names to cooldown days
-        config.categories.forEach(cat => {
-            categoryMap[cat.name] = cat.cooldownDays;
-        });
-        
-        // Find the item and apply cooldown
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].id === id) {
-                // Apply cooldown based on item's category
-                const cooldown = categoryMap[items[i].category] || 3; // Default to 3 if category not found
-                items[i].cooldown = cooldown;
-                break;
-            }
-        }
-        
-        // Save updated items back to localStorage
-        localStorage.setItem('items', JSON.stringify(items));
-        
-        // Update UI to indicate item is purchased
-        const itemElement = document.querySelector(`.shop-item[data-id="${id}"]`);
-        if (itemElement) {
-            itemElement.style.opacity = '0.5';
-            const buyButton = itemElement.querySelector('.buy-btn');
-            if (buyButton) {
-                buyButton.disabled = true;
-                buyButton.textContent = 'Purchased';
-            }
-        }
-    }
-
-    // Clear shop functionality
-    document.getElementById('clear-shop-btn').addEventListener('click', function() {
-        document.getElementById('shop-items').innerHTML = '';
+        // Generate shop on page load
+        generateShop();
     });
 </script>
 {{ end }}
