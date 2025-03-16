@@ -30,21 +30,23 @@
     <button class="btn" onclick="resetFilters()">Reset Filters</button>
 </div>
 
-<table>
-    <thead>
-        <tr>
-            <th class="sortable" data-sort="name">Name</th>
-            <th>Description</th>
-            <th class="sortable" data-sort="localPrice">Local Price</th>
-            <th class="sortable" data-sort="nationalPrice">National Price</th>
-            <th class="sortable" data-sort="category">Category</th>
-            <th class="sortable" data-sort="market">Market</th>
-            <th class="sortable" data-sort="cooldown">Cooldown</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody id="items-table-body">
-        <!-- Items will be loaded from localStorage via JavaScript -->
-    </tbody>
-</table>
+<div class="table-responsive">
+    <table>
+        <thead>
+            <tr>
+                <th class="sortable" data-sort="name">Name</th>
+                <th>Description</th>
+                <th class="sortable" data-sort="localPrice">Local Price</th>
+                <th class="sortable" data-sort="nationalPrice">National Price</th>
+                <th class="sortable" data-sort="category">Category</th>
+                <th class="sortable" data-sort="market">Market</th>
+                <th class="sortable" data-sort="cooldown">Cooldown</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="items-table-body">
+            <!-- Items will be loaded from localStorage via JavaScript -->
+        </tbody>
+    </table>
+</div>
 {{ end }}
