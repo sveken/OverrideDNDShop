@@ -1,0 +1,358 @@
+/* Main CSS file for D&D Shop Generator */
+
+:root {
+    /* Light theme (default) variables */
+    --background-color: #f5f5f5;
+    --container-bg: #fff;
+    --text-color: #333;
+    --heading-color: #7D5A50;
+    --button-bg: #7D5A50;
+    --button-hover: #6a4c43;
+    --danger-button-bg: #d9534f;
+    --danger-button-hover: #c9302c;
+    --toggle-button-bg: #ddd;
+    --toggle-button-color: #333;
+    --table-border: #ddd;
+    --table-header-bg: #f2f2f2;
+    --table-alt-row: #f9f9f9;
+    --item-border: #7D5A50;
+    --item-bg: #fff;
+    --black-market-bg: rgba(0,0,0,0.05);
+    --black-market-border: #463631;
+    --shadow-color: rgba(0,0,0,0.1);
+    --shadow-hover: rgba(0,0,0,0.15);
+}
+
+/* Dark theme variables */
+.dark-theme {
+    --background-color: #1e1e1e;
+    --container-bg: #2d2d2d;
+    --text-color: #e0e0e0;
+    --heading-color: #c3957b;
+    --button-bg: #7D5A50;
+    --button-hover: #8d6a60;
+    --danger-button-bg: #a73430;
+    --danger-button-hover: #b7433f;
+    --toggle-button-bg: #3d3d3d;
+    --toggle-button-color: #e0e0e0;
+    --table-border: #444;
+    --table-header-bg: #383838;
+    --table-alt-row: #333;
+    --item-border: #956b5d;
+    --item-bg: #2d2d2d;
+    --black-market-bg: rgba(0,0,0,0.2);
+    --black-market-border: #624b44;
+    --shadow-color: rgba(0,0,0,0.5);
+    --shadow-hover: rgba(0,0,0,0.6);
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    background-color: var(--background-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+.container {
+    background-color: var(--container-bg);
+    padding: 2rem;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px var(--shadow-color);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+}
+h1, h2, h3 {
+    color: var(--heading-color);
+    transition: color 0.3s ease;
+}
+button, .btn {
+    background-color: var(--button-bg);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+button:hover, .btn:hover {
+    background-color: var(--button-hover);
+}
+.btn-danger {
+    background-color: var(--danger-button-bg);
+}
+.btn-danger:hover {
+    background-color: var(--danger-button-hover);
+}
+.toggle-container {
+    display: flex;
+    margin: 1rem 0;
+}
+.toggle-btn {
+    padding: 10px 20px;
+    background-color: var(--toggle-button-bg);
+    color: var(--toggle-button-color);
+    cursor: pointer;
+    border: 1px solid var(--table-border);
+}
+.toggle-btn.active {
+    background-color: var(--button-bg);
+    color: white;
+}
+.toggle-btn:first-child {
+    border-radius: 4px 0 0 4px;
+}
+.toggle-btn:last-child {
+    border-radius: 0 4px 4px 0;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+table, th, td {
+    border: 1px solid var(--table-border);
+    transition: border 0.3s ease;
+}
+th, td {
+    padding: 12px;
+    text-align: left;
+}
+th {
+    background-color: var(--table-header-bg);
+    transition: background-color 0.3s ease;
+}
+tr:nth-child(even) {
+    background-color: var(--table-alt-row);
+    transition: background-color 0.3s ease;
+}
+.shop-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: auto; /* Changed from 100% to auto to ensure it expands with content */
+    min-height: 250px; /* Adding minimum height to avoid content compression */
+    padding: 1.5rem;
+    border-radius: 8px;
+    background-color: var(--item-bg);
+    box-shadow: 0 4px 6px var(--shadow-color);
+    border: 2px solid var(--item-border);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 0.5rem; /* Adding a small bottom margin for safety */
+    box-sizing: border-box; /* Ensuring padding is included in the height calculation */
+}
+
+.shop-item-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+    overflow-wrap: break-word;
+}
+
+.shop-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px var(--shadow-hover);
+}
+
+.shop-item.black-market {
+    background-color: var(--black-market-bg);
+    border-color: var(--black-market-border);
+}
+
+.shop-item.black-market::before {
+    content: "★";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 20px;
+    color: var(--black-market-border);
+}
+
+.shop-item h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--heading-color);
+    font-size: 1.25rem;
+    padding-right: 30px;
+}
+
+.shop-item.black-market h3 {
+    color: var(--heading-color);
+}
+
+.shop-item p {
+    margin: 0.5rem 0;
+    line-height: 1.4;
+}
+
+.shop-item button {
+    margin-top: 1.5rem;
+    align-self: stretch;
+    transition: all 0.2s ease;
+}
+
+.shop-item button:hover {
+    transform: scale(1.02);
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 0.5rem; 
+    padding: 1.5rem 0;
+    align-items: stretch; /* Ensuring items stretch to match height in row */
+}
+.tab-container {
+    margin: 1rem 0;
+}
+.tab {
+    overflow: hidden;
+    border: 1px solid var(--table-border);
+    background-color: var(--toggle-button-bg);
+    border-radius: 4px 4px 0 0;
+    transition: background-color 0.3s ease;
+}
+.tab button {
+    background-color: inherit;
+    color: var(--text-color);
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    transition: 0.3s;
+    font-size: 17px;
+}
+.tab button:hover {
+    background-color: var(--table-alt-row);
+}
+.tab button.active {
+    background-color: var(--button-bg);
+    color: white;
+}
+.tabcontent {
+    display: none;
+    padding: 20px;
+    border: 1px solid var(--table-border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    transition: border 0.3s ease;
+}
+.form-group {
+    margin-bottom: 1rem;
+}
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+input, select, textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--table-border);
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-bottom: 1rem;
+    background-color: var(--container-bg);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+.cooldown {
+    color: var(--danger-button-bg);
+    font-weight: bold;
+}
+.btn + .btn {
+    margin-left: 0.5rem;
+}
+
+/* Theme toggle styles */
+.theme-toggle {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 30px;
+}
+
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #7D5A50;
+    transition: .4s;
+    border-radius: 30px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "☀️";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+    width: 24px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    font-size: 12px;
+}
+
+input:checked + .slider {
+    background-color: #483232;
+}
+
+input:checked + .slider:before {
+    transform: translateX(30px);
+    content: "🌙";
+}
+
+/* Update toast notification */
+.update-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.update-toast button {
+    margin-left: 10px;
+    padding: 5px 10px;
+    background-color: white;
+    color: #4CAF50;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
