@@ -356,3 +356,58 @@ input:checked + .slider:before {
     border-radius: 3px;
     cursor: pointer;
 }
+
+/* General responsive styles */
+@media (max-width: 767px) {
+    body {
+        padding: 0.5rem;
+    }
+    
+    .container {
+        padding: 1rem;
+    }
+    
+    /* Improve tab navigation on mobile */
+    .tab {
+        display: flex;
+        flex-wrap: wrap;
+    }
+    
+    .tab button {
+        flex-grow: 1;
+        flex-basis: 0;
+        min-width: 80px;
+        text-align: center;
+        font-size: 15px;
+        padding: 10px 5px;
+    }
+    
+    /* Adjust the theme toggle position on mobile */
+    .theme-toggle {
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+    
+    /* Adjust button spacing on mobile */
+    .btn + .btn {
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
+    
+    /* Make sure buttons stack properly on mobile when in a row */
+    .buttons-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    /* Improve shop grid layout on mobile */
+    .shop-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Adjust form layout */
+    .form-group {
+        margin-bottom: 0.75rem;
+    }
+}
