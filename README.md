@@ -1,6 +1,6 @@
 # D&D Shop Generator
 
-A web-based tool for Dungeon Masters to generate and manage shop inventories for their D&D campaigns. Designed and built for Override.
+A web-based tool for Dungeon Masters to generate and manage shop inventories for their D&D campaigns. Designed and built for Override. To jump straight in visit https://dndshop.sveken.com/
 
 ## Features
 
