@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -127,6 +128,8 @@ func main() {
 
 	// Start server
 	log.Println("Starting server on :8080")
+	fmt.Println("Server has started. Visit http://localhost:8080 to view the app if you are running this locally.")
+	fmt.Println("Press Ctrl+C to stop the server if you are running this locally.")
 	log.Fatal(http.ListenAndServe(":8080", mux))
 }
 
